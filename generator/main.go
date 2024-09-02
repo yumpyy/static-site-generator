@@ -18,7 +18,7 @@ const (
 func parseDraft(lines []string) (title, date, content string) {
 	title = strings.TrimSpace(strings.Split(lines[0], ":")[1])
 	date = strings.TrimSpace(strings.Split(lines[1], ":")[1])
-    content = strings.Join(lines[3:], "\n")
+    content = strings.Join(lines[3:], "\n") 
 	if date == "" {
 		date = strings.ToLower(time.Now().Format("02-01-2006"))
 	}
@@ -28,30 +28,31 @@ func parseDraft(lines []string) (title, date, content string) {
 
 func convertMarkdownToHtml(content string) string {
     mdHTMLTag := map[string]string {
-        `\*(.*?)\*`   : "b",
-        `_(.*?)_`     : "i",
-        `~(.*?)~`     : "s",
-        `^# (.*?)$`   : "h1",
-        `^## (.*?)$`  : "h2",
-        `^### (.*?)$` : "h3",
-        `^- (.*?)$`   : "li",
+        `(?m)\*(.*?)\*`   : "b",
+        `(?m)_(.*?)_`     : "i",
+        `(?m)~(.*?)~`     : "s",
+        `(?m)^# (.*?)$`   : "h1",
+        `(?m)^## (.*?)$`  : "h2",
+        `(?m)^### (.*?)$` : "h3",
+        `(?m)^- (.*?)$`   : "li",
     }
 
-    var htmlContent string
-        
+    htmlContent := content
     for pattern, tag := range mdHTMLTag {
         replacement := fmt.Sprintf("<%s>$1</%s>", tag, tag)
-        htmlContent = regexp.MustCompile(pattern).ReplaceAllString(content, replacement)
+        htmlContent = regexp.MustCompile(pattern).ReplaceAllString(htmlContent, replacement)
     }
 
     return htmlContent
 }
 
 func generateHtmlFromTemplate(title, date, content string) string {
+    // modifiedContent := strings.Join(content, "")
     templateReplacements := map[string]string {
         "title"   : title,
         "date"    : date,
         "content" : content,
+        // "content" : modifiedContent,
     }
 
     templateFile, err := os.Open(templateFilePath)
@@ -66,10 +67,10 @@ func generateHtmlFromTemplate(title, date, content string) string {
         templateLines = append(templateLines, scanner.Text())
     }
      
-    var htmlContent string
+    htmlContent := strings.Join(templateLines, "\n")
     for pattern, replacement := range templateReplacements {
         pattern = fmt.Sprintf(`{{(.*?)%s(.*?)}}`, pattern)
-        htmlContent  = regexp.MustCompile(pattern).ReplaceAllString(content, replacement)
+        htmlContent = regexp.MustCompile(pattern).ReplaceAllString(htmlContent, replacement)
     }
 
     return htmlContent
