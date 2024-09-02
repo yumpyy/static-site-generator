@@ -15,12 +15,43 @@ const (
     templateFilePath = "../public/template.html"
 )
 
-func generateHtmlFromTemplate(title, date string, content []string) string {
-    modifiedContent := strings.Join(content, "")
+func parseDraft(lines []string) (title, date, content string) {
+	title = strings.TrimSpace(strings.Split(lines[0], ":")[1])
+	date = strings.TrimSpace(strings.Split(lines[1], ":")[1])
+    content = strings.Join(lines[3:], "\n")
+	if date == "" {
+		date = strings.ToLower(time.Now().Format("02-01-2006"))
+	}
+
+    return
+}
+
+func convertMarkdownToHtml(content string) string {
+    mdHTMLTag := map[string]string {
+        `\*(.*?)\*`   : "b",
+        `_(.*?)_`     : "i",
+        `~(.*?)~`     : "s",
+        `^# (.*?)$`   : "h1",
+        `^## (.*?)$`  : "h2",
+        `^### (.*?)$` : "h3",
+        `^- (.*?)$`   : "li",
+    }
+
+    var htmlContent string
+        
+    for pattern, tag := range mdHTMLTag {
+        replacement := fmt.Sprintf("<%s>$1</%s>", tag, tag)
+        htmlContent = regexp.MustCompile(pattern).ReplaceAllString(content, replacement)
+    }
+
+    return htmlContent
+}
+
+func generateHtmlFromTemplate(title, date, content string) string {
     templateReplacements := map[string]string {
         "title"   : title,
         "date"    : date,
-        "content" : modifiedContent,
+        "content" : content,
     }
 
     templateFile, err := os.Open(templateFilePath)
@@ -35,53 +66,10 @@ func generateHtmlFromTemplate(title, date string, content []string) string {
         templateLines = append(templateLines, scanner.Text())
     }
      
-    var htmlLines []string
-    for _, line := range templateLines {
-        line = strings.TrimSpace(line)
-        for pattern, replacement := range templateReplacements {
-            pattern = fmt.Sprintf(`{{(.*?)%s(.*?)}}`, pattern)
-            line = regexp.MustCompile(pattern).ReplaceAllString(line, replacement)
-        }
-        htmlLines = append(htmlLines, fmt.Sprintf("%s\n", line))
-
-    }
-    htmlContent := strings.Join(htmlLines, "")
-
-    return htmlContent
-}
-
-func parseDraft(lines []string) (title, date string, content []string) {
-	title = strings.TrimSpace(strings.Split(lines[0], ":")[1])
-	date = strings.TrimSpace(strings.Split(lines[1], ":")[1])
-    content = lines[3:]
-	if date == "" {
-		date = strings.ToLower(time.Now().Format("02-01-2006"))
-	}
-
-    return
-}
-
-func convertMarkdownToHtml(content []string) []string {
-    var htmlContent []string
-
-    mdHTMLTag := map[string]string {
-        `\*(.*?)\*`   : "b",
-        `_(.*?)_`     : "i",
-        `~(.*?)~`     : "s",
-        `^# (.*?)$`   : "h1",
-        `^## (.*?)$`  : "h2",
-        `^### (.*?)$` : "h3",
-        `^- (.*?)$`   : "li",
-    }
-
-    for _, line := range content {
-        line = strings.TrimSpace(line)
-        for pattern, tag := range mdHTMLTag {
-            replacement := fmt.Sprintf("<%s>$1</%s>", tag, tag)
-            line = regexp.MustCompile(pattern).ReplaceAllString(line, replacement)
-        }
-        htmlContent = append(htmlContent, fmt.Sprintf("%s\n", line))
-
+    var htmlContent string
+    for pattern, replacement := range templateReplacements {
+        pattern = fmt.Sprintf(`{{(.*?)%s(.*?)}}`, pattern)
+        htmlContent  = regexp.MustCompile(pattern).ReplaceAllString(content, replacement)
     }
 
     return htmlContent
