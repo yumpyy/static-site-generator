@@ -35,24 +35,32 @@ func convertMarkdownToHtml(content string) string {
         `(?m)^## (.*?)$`  : "h2",
         `(?m)^### (.*?)$` : "h3",
         `(?m)^- (.*?)$`   : "li",
+        `(?m)^----$`      : "hr",
+	    "(?m)`(.*?)`"     : "code",
     }
 
     htmlContent := content
     for pattern, tag := range mdHTMLTag {
         replacement := fmt.Sprintf("<%s>$1</%s>", tag, tag)
         htmlContent = regexp.MustCompile(pattern).ReplaceAllString(htmlContent, replacement)
+        htmlContent = regexp.MustCompile(`(?m)^--$`).ReplaceAllString(htmlContent, "<br>")
     }
 
+    paragraphs := regexp.MustCompile(`(?m)\n\n`).Split(htmlContent, -1)
+    for i, paragraph := range paragraphs {
+        paragraph = strings.TrimSpace(paragraph)
+        paragraphs[i] = fmt.Sprintf("<p>%s</p>", paragraph)
+    }
+
+    htmlContent = strings.Join(paragraphs, "\n")
     return htmlContent
 }
 
 func generateHtmlFromTemplate(title, date, content string) string {
-    // modifiedContent := strings.Join(content, "")
     templateReplacements := map[string]string {
         "title"   : title,
         "date"    : date,
         "content" : content,
-        // "content" : modifiedContent,
     }
 
     templateFile, err := os.Open(templateFilePath)
@@ -69,7 +77,7 @@ func generateHtmlFromTemplate(title, date, content string) string {
      
     htmlContent := strings.Join(templateLines, "\n")
     for pattern, replacement := range templateReplacements {
-        pattern = fmt.Sprintf(`{{(.*?)%s(.*?)}}`, pattern)
+        pattern = fmt.Sprintf(`{{\s?%s\s?}}`, pattern)
         htmlContent = regexp.MustCompile(pattern).ReplaceAllString(htmlContent, replacement)
     }
 
